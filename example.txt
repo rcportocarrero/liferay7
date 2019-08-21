@@ -1,0 +1,28 @@
+====================
+SELECT parameterId,tableCod,productName FROM tableExample;
+====================
+
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Statement;
+import com.liferay.portal.kernel.dao.jdbc.DataAccess;
+
+Connection con = null;
+Statement st = null;
+try {
+	con = DataAccess.getUpgradeOptimizedConnection();
+	st = con.createStatement();
+	ResultSet rs = st.executeQuery("SELECT parameterId,tableCod,productName FROM tableExample;");
+	while (rs.next()) {
+		int paramUserId = rs.getInt("parameterId");
+		String paramCreateDate = rs.getString("tableCod");
+		String paramProductName = rs.getString("productName");
+
+		println("ROW = " + paramUserId + " | " + paramCreateDate + " | " + paramProductName);
+	}
+}
+finally {
+	DataAccess.cleanUp(con, st);
+}
