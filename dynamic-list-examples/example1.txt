@@ -1,0 +1,319 @@
+@Deprecated
+	/**
+	 *  BUSCAR PRODUCTOS JSON
+	 *
+	 */	
+	private List<DDLRecord> getDDLRecords(long recordSetId) {
+		DynamicQuery dynamicQuery = DDLRecordLocalServiceUtil.dynamicQuery();		
+		dynamicQuery.add(PropertyFactoryUtil.forName("recordSetId").eq(recordSetId));
+		return DDLRecordLocalServiceUtil.dynamicQuery(dynamicQuery);
+	}
+	
+	@Deprecated
+	public List<Products> getDDLProducts(long recordSetId) throws PortalException {
+		List<Products> productList = new ArrayList<>();
+		
+		String data = null;
+		String defaultLanguageId=null;
+		
+		JSONObject jsonObject = null;
+		for (DDLRecord record : getDDLRecords(recordSetId)) {
+			data = DDMContentLocalServiceUtil.getDDMContent(record.getDDMStorageId()).getData();
+			jsonObject = JSONFactoryUtil.createJSONObject(data);
+			defaultLanguageId = jsonObject.get("defaultLanguageId").toString();
+			JSONArray fieldValues = jsonObject.getJSONArray("fieldValues");
+			Products product = new Products();
+			for (int i = 0; i < fieldValues.length(); i++) {
+				JSONObject fieldsName = fieldValues.getJSONObject(i);
+				JSONObject localField = fieldsName.getJSONObject("value");
+				if(fieldsName.getString("name").equals("Perfiles")){
+					product.setProfile(localField.getString(defaultLanguageId).replace(":", "").replace("[\"", "").replace("\"]","").replace("\",\"",","));
+				}else if(fieldsName.getString("name").equals("URLImagen")){
+					product.setUrlImage(localField.getString(defaultLanguageId));
+				}else if(fieldsName.getString("name").equals("Riesgo")){
+					product.setRisk(localField.getString(defaultLanguageId));
+				}else if(fieldsName.getString("name").equals("Moneda")){
+					product.setCurrency(localField.getString(defaultLanguageId).replace(":", "").replace("[\"", "").replace("\"]","").replace("\",\"",","));
+				}else if(fieldsName.getString("name").equals("NombreDeProducto")){
+					product.setName(localField.getString(defaultLanguageId));
+				}else if(fieldsName.getString("name").equals("DetalleDeProducto")){
+					product.setDetail(localField.getString(defaultLanguageId));
+				}else if(fieldsName.getString("name").equals("RentabilidadEsperada")){
+					product.setCostEffectiveness(localField.getString(defaultLanguageId));
+				}else if(fieldsName.getString("name").equals("PlazoRecomendado")){
+					product.setRecommendedTerm(localField.getString(defaultLanguageId));
+				}else if(fieldsName.getString("name").equals("MontoMinimo")){
+					product.setMinimumAmount(localField.getString(defaultLanguageId));
+				}else if(fieldsName.getString("name").equals("MontoMaximo")){
+					product.setMaximumAmount(localField.getString(defaultLanguageId));
+				}else if(fieldsName.getString("name").equals("vistaPrivada")){
+					product.setShowInPrivate(Boolean.valueOf(localField.getString(defaultLanguageId)));
+				}else if(fieldsName.getString("name").equals("vistaPublica")){
+					product.setShowInPublic(Boolean.valueOf(localField.getString(defaultLanguageId)));
+				}
+			}
+			productList.add(product);	
+					
+		}
+		return productList;
+
+	}
+	
+	@Deprecated
+	/**
+	 * Obtener productos por perfil
+	 * 
+	 * @param descPerfil
+	 * @param themeDisplay
+	 * @return
+	 */
+	public List<Products> getProducts(String descPerfil,String[] coloursPieChart,Boolean isSigned) {
+		List<Products> productList = new ArrayList<>();
+		int itemColorProducts = 0;
+		int maxColorsLength = coloursPieChart.length;
+		List<Products> filterSortedProducts = new ArrayList<>();
+		try {
+			String ddlProductsKey = tableParameterLocalServiceUtil
+					.findByObjetoCod(InteligoCertiaInviertePortletKeys.DDL_PRODUCTOS,
+							InteligoCertiaInviertePortletKeys.TABLA_PERFILADOR)
+					.getValorDsc();
+			
+			int aniosCortoPlazo = Integer.parseInt(tableParameterLocalServiceUtil
+					.findByObjetoCod(InteligoCertiaInviertePortletKeys.FILTER_VAL_PLAZO_CORTO,
+							InteligoCertiaInviertePortletKeys.TABLA_PERFILADOR)
+					.getValorDsc());
+			
+			int aniosMedianoPlazo = Integer.parseInt(tableParameterLocalServiceUtil
+					.findByObjetoCod(InteligoCertiaInviertePortletKeys.FILTER_VAL_PLAZO_MEDIANO,
+							InteligoCertiaInviertePortletKeys.TABLA_PERFILADOR)
+					.getValorDsc());
+			
+			logger.info("======================================");
+			logger.info("=========INVIERTE=====================");
+			logger.info("======================================");
+			logger.info("ddlProductsKey" + ddlProductsKey);
+			logger.info("aniosCortoPlazo" + ddlProductsKey);
+			logger.info("aniosMedianoPlazo" + ddlProductsKey);
+			
+			List<Products> getProductos = getDDLProducts(Long.parseLong(ddlProductsKey));
+			logger.info("getProductos" + getProductos.size());
+			
+			
+			for (Products products : getProductos) {
+				if(isSigned){
+					if(products.getShowInPrivate()){
+						//Agregar productos dependiendo del flag privado
+						if(products.getProfile().contains(descPerfil)) {
+							if (itemColorProducts > maxColorsLength - 1) {
+								itemColorProducts = 0;
+							}
+							
+							Products product = new Products();
+							product.setProfile(descPerfil);
+							product.setRisk(products.getRisk());
+							product.setUrlImage(products.getUrlImage());
+							product.setCurrency(products.getCurrency());
+							product.setName(products.getName());
+							product.setCostEffectiveness(products.getCostEffectiveness());
+							product.setUniqueId(InteligoCertiaInvierteUtil.getMD5(products.getName()+products.getCurrency()+products.getCostEffectiveness()));
+							if(!products.getCostEffectiveness().isEmpty() && products.getCostEffectiveness() != null){
+								product.setCostEffectivenessSort(Double.parseDouble(InteligoCertiaInvierteUtil.getRentability(products.getCostEffectiveness())));
+							}
+							
+							if(!products.getRecommendedTerm().isEmpty() && products.getRecommendedTerm() != null){
+								product.setDeadline(InteligoCertiaInvierteUtil.obtenerPlazoRecomendado(products.getRecommendedTerm(), aniosCortoPlazo, aniosMedianoPlazo));
+							}
+							product.setRecommendedTerm(products.getRecommendedTerm());
+							product.setMinimumAmount(products.getMinimumAmount());
+							product.setMaximumAmount(products.getMaximumAmount());
+							product.setDetail(products.getDetail());
+							product.setColor(coloursPieChart[itemColorProducts]);
+							productList.add(product);
+							
+							itemColorProducts++;
+						}
+					}
+				}else{
+				
+					if(products.getShowInPublic()){
+						//Agregar productos dependiendo del flag público
+						if(products.getProfile().contains(descPerfil)) {
+							if(itemColorProducts > maxColorsLength - 1) {
+								itemColorProducts = 0;
+							}
+							
+							Products product = new Products();
+							product.setProfile(descPerfil);
+							product.setRisk(products.getRisk());
+							product.setUrlImage(products.getUrlImage());
+							product.setCurrency(products.getCurrency());
+							product.setName(products.getName());
+							product.setCostEffectiveness(products.getCostEffectiveness());
+							if(!products.getCostEffectiveness().isEmpty() && products.getCostEffectiveness() != null){
+								product.setCostEffectivenessSort(Double.parseDouble(InteligoCertiaInvierteUtil.getRentability(products.getCostEffectiveness())));
+							}
+							
+							if(!products.getRecommendedTerm().isEmpty() && products.getRecommendedTerm() != null){
+								product.setDeadline(InteligoCertiaInvierteUtil.obtenerPlazoRecomendado(products.getRecommendedTerm(), aniosCortoPlazo, aniosMedianoPlazo));
+							}
+							product.setRecommendedTerm(products.getRecommendedTerm());
+							product.setMinimumAmount(products.getMinimumAmount());
+							product.setMaximumAmount(products.getMaximumAmount());
+							product.setDetail(products.getDetail());
+							product.setColor(coloursPieChart[itemColorProducts]);
+							productList.add(product);
+							
+							itemColorProducts++;
+						}
+					}
+				}
+				
+				
+				
+			}
+
+		} catch (PortalException e2) {
+			e2.printStackTrace();
+			logger.error("ERROR INVIERTE"+ e2.getMessage());
+		}
+		
+		logger.info("filterSortedProducts" + filterSortedProducts.size());
+		filterSortedProducts = 
+				productList.stream()
+			            .sorted(Comparator.comparing(Products::getCostEffectivenessSort).reversed())
+			            .collect(Collectors.toList());
+		return filterSortedProducts;
+	}
+
+	@Deprecated
+	/**
+	 * Obtener carteras por perfil
+	 * 
+	 * @param descPerfil
+	 * @param themeDisplay
+	 * @return
+	 */
+	public List<Portfolios> getPortfolio(String descPerfil, ThemeDisplay themeDisplay,String[] coloursPieChart) {
+		List<Portfolios> portfoliosList = new ArrayList<>();
+		DDLRecordSet ddlRecord1;
+
+		try {
+			String ddlProductsKey = tableParameterLocalServiceUtil
+					.findByObjetoCod(InteligoCertiaInviertePortletKeys.DDL_CARTERAS_GRAPHIC,
+							InteligoCertiaInviertePortletKeys.TABLA_PERFILADOR)
+					.getValorDsc();
+			ddlRecord1 = DDLRecordSetLocalServiceUtil.getDDLRecordSet(Long.parseLong(ddlProductsKey));
+
+			DDLRecordLocalServiceUtil.getRecords(ddlRecord1.getRecordSetId()).parallelStream().forEach(fila -> {
+				DDMFormFieldValueRenderer formField = DDMFormFieldValueRendererRegistryUtil
+						.getDDMFormFieldValueRenderer("text");
+				DDMFormFieldValueRenderer formCbo = DDMFormFieldValueRendererRegistryUtil
+						.getDDMFormFieldValueRenderer("select");
+				try {
+					String profile = formCbo.render(fila.getDDMFormFieldValues("Perfil"), themeDisplay.getLocale());
+					String label = formField.render(fila.getDDMFormFieldValues("Etiqueta"), themeDisplay.getLocale());
+					Double value = Double
+							.parseDouble(formField.render(fila.getDDMFormFieldValues("Valor"), themeDisplay.getLocale()));
+					String color = formField.render(fila.getDDMFormFieldValues("Color"), themeDisplay.getLocale());
+
+					if (profile.replace(" ", "").equals(descPerfil.replace(" ", ""))) {
+
+						Portfolios portfolios = new Portfolios();
+						portfolios.setLabel(label);
+						portfolios.setValue(value);
+						portfolios.setColor(color);
+						portfoliosList.add(portfolios);
+					}
+
+				} catch (PortalException e) {
+					logger.error("##Invierte -> getPortfolio1: " + e.getMessage());
+					e.printStackTrace();
+				}
+			});
+		} catch (PortalException e2) {
+			logger.error("##Invierte -> getPortfolio2: " + e2.getMessage());
+			e2.printStackTrace();
+		}
+		
+		/*Agregar campo color*/
+		int itemColorProducts = 0;
+		int maxColorsLength = coloursPieChart.length;
+		for (Portfolios portfolios : portfoliosList) {
+			if (portfolios.getColor().isEmpty()) {
+				if (itemColorProducts > maxColorsLength - 1) {
+					itemColorProducts = 0;
+				}
+
+				portfolios.setColor(coloursPieChart[itemColorProducts]);
+				itemColorProducts++;
+			}
+		}
+		
+		return portfoliosList;
+	}
+
+	@Deprecated
+	/**
+	 * Obtener Datos de Card de Portafolio
+	 * 
+	 * @param descPerfil
+	 * @param themeDisplay
+	 * @return
+	 */
+	public Products getPortfolioCard(String descPerfil, ThemeDisplay themeDisplay) {
+		Products product = new Products();
+		DDLRecordSet ddlRecord1;
+
+		try {
+			String ddlProductsKey = tableParameterLocalServiceUtil
+					.findByObjetoCod(InteligoCertiaInviertePortletKeys.DDL_CARTERAS_CARD,
+							InteligoCertiaInviertePortletKeys.TABLA_PERFILADOR)
+					.getValorDsc();
+			ddlRecord1 = DDLRecordSetLocalServiceUtil.getDDLRecordSet(Long.parseLong(ddlProductsKey));
+			DDLRecordLocalServiceUtil.getRecords(ddlRecord1.getRecordSetId()).parallelStream().forEach(fila -> {
+				DDMFormFieldValueRenderer formField = DDMFormFieldValueRendererRegistryUtil
+						.getDDMFormFieldValueRenderer(InteligoCertiaInviertePortletKeys.DDL_FORM_FIELD_TYPE_TEXT);
+				DDMFormFieldValueRenderer formCbo = DDMFormFieldValueRendererRegistryUtil
+						.getDDMFormFieldValueRenderer(InteligoCertiaInviertePortletKeys.DDL_FORM_FIELD_TYPE_SELECT);
+				try {
+					String profile = formCbo.render(fila.getDDMFormFieldValues("Perfil"), themeDisplay.getLocale());
+					String risk = formField.render(fila.getDDMFormFieldValues("Riesgo"), themeDisplay.getLocale());
+					String urlImagen = formField.render(fila.getDDMFormFieldValues("URLImagen"),
+							themeDisplay.getLocale());
+					String currency = formCbo.render(fila.getDDMFormFieldValues("Moneda"), themeDisplay.getLocale());
+					String type = formField.render(fila.getDDMFormFieldValues("TipoDeProducto"),
+							themeDisplay.getLocale());
+					String costEffectiveness = formField.render(fila.getDDMFormFieldValues("RentabilidadEsperada"),
+							themeDisplay.getLocale());
+					String recommendedTerm = formField.render(fila.getDDMFormFieldValues("PlazoRecomendado"),
+							themeDisplay.getLocale());
+					String minimumAmount = formField.render(fila.getDDMFormFieldValues("MontoMinimo"),
+							themeDisplay.getLocale());
+					String maximumAmount = formField.render(fila.getDDMFormFieldValues("MontoMaximo"),
+							themeDisplay.getLocale());
+
+					if (profile.replace(" ", "").equals(descPerfil.replace(" ", ""))) {
+						product.setProfile(descPerfil);
+						product.setRisk(risk);
+						product.setUrlImage(urlImagen);
+						product.setCurrency(currency);
+						product.setName(type);
+						product.setCostEffectiveness(costEffectiveness);
+						product.setRecommendedTerm(recommendedTerm);
+						product.setMinimumAmount(minimumAmount);
+						product.setMaximumAmount(maximumAmount);
+						
+					}
+
+				} catch (PortalException e) {
+
+					e.printStackTrace();
+				}
+			});
+		} catch (PortalException e2) {
+			e2.printStackTrace();
+		}
+
+		return product;
+	}
+	
