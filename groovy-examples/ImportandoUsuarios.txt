@@ -1,0 +1,128 @@
+import com.liferay.portal.kernel.model.*;
+import com.liferay.portal.kernel.service.*;
+import com.liferay.portal.kernel.util.*;
+import com.liferay.portal.kernel.json.*;
+import com.liferay.portal.kernel.security.permission.*;
+import com.liferay.portal.kernel.security.auth.*;
+
+separator = "	";
+anotherSeparator = "!";
+mailDomain = "liferay.com";
+groupName = "Guest";
+data = [
+"AAAAoAAB9AB617V/l1Yj8ojpq7KR9hTuNua2Zy5dLqQQg2B+	1234910	107430@no-emailaddress.com	0		en_US	Nombre ...."
+] as String [];
+
+long companyId = CompanyLocalServiceUtil.getCompanyByMx(mailDomain).getCompanyId();
+
+creatorUserId = 0;
+try{
+	ServiceContext serviceContext = ServiceContextThreadLocal.getServiceContext();
+	creatorUserId = serviceContext.getUserId();
+}catch(Exception ex){
+	println "No se obtuvo usuario conectado.Asignando ID:0";
+}
+
+userGroup = GroupLocalServiceUtil.fetchGroup(companyId,groupName);
+if(userGroup != null){
+	groupId = userGroup.getGroupId();
+
+userIndex = 0;
+	try{
+		for(String item:data){
+			userIndex++;
+			print userIndex+") ";
+			String []columns = item.split(separator);
+			if(!"".equals(item)&&columns.length >0 && !"".equals(columns[2].trim())){
+				try{
+					String screenName = columns[1].trim();
+					String emailAddress = columns[2].trim();
+					User userExistsScreenName = UserLocalServiceUtil.fetchUserByScreenName(companyId, screenName);
+					User userExistsEmailAddress = UserLocalServiceUtil.fetchUserByEmailAddress(companyId, emailAddress);
+					
+					if(userExistsScreenName == null && userExistsEmailAddress == null){
+						
+						String password = columns[0].trim();
+						long facebookId = Long.parseLong(columns[3]);
+						String openId = columns[4].trim();
+						Locale locale = LocaleUtil.fromLanguageId(columns[5]);
+						String firstName = columns[6].trim();
+						String middleName = columns[7].trim();
+						String lastName = columns[8].trim();
+						long prefixId = Long.parseLong(columns[9].trim());
+						long suffixId = Long.parseLong(columns[10].trim());
+						boolean male = Boolean.parseBoolean(columns[11].trim());
+						int birthdayMonth = Integer.parseInt(columns[12].trim());
+						int birthdayDay = Integer.parseInt(columns[13].trim());
+						int birthdayYear = Integer.parseInt(columns[14].trim());
+						String jobTitle = columns[15].trim();
+						boolean agreedToTermsOfUse = Boolean.parseBoolean(columns[16].trim());
+						String question = columns[17].trim();
+						String answer = columns[18].trim();
+						boolean passwordReset = Boolean.parseBoolean(columns[19].trim());
+						String loginIP = columns[20].trim();
+						//SITE
+						groupIds = [groupId] as long[];
+						
+						//ORGANIZATION
+						organizationIds = null;
+						
+						//ROLE
+						roleIds = null;
+						
+						//USER GROUP
+						userGroupIds = null;
+															
+						//CUSTOM FIELDS
+						
+						PermissionChecker permissionChecker;
+						permissionChecker = PermissionCheckerFactoryUtil.create(UserLocalServiceUtil.getUserByScreenName(companyId, "test"));
+						PermissionThreadLocal.setPermissionChecker(permissionChecker);
+						
+						ServiceContext userServiceContext = new ServiceContext();
+						if(columns.length>21){
+							Map<String, Serializable> expandoBridgeAttributes = new HashMap<String, Serializable>();
+							for(int i =21;i<columns.length;i++){
+								String []subColumns = columns[i].split(anotherSeparator);
+								if(subColumns.length>1){
+									expandoBridgeAttributes.put(subColumns[0],subColumns[1]);
+								}
+							}
+							userServiceContext.setExpandoBridgeAttributes(expandoBridgeAttributes);
+						}
+
+						userId = UserLocalServiceUtil.addUser(creatorUserId,companyId,false, password, password,false, screenName, emailAddress, 
+													 facebookId, openId, locale, firstName, middleName, lastName, prefixId, suffixId, male,
+													 birthdayMonth, birthdayDay, birthdayYear,jobTitle, groupIds, organizationIds, roleIds,
+													userGroupIds,false, userServiceContext).getUserId();
+						UserLocalServiceUtil.updateAgreedToTermsOfUse(userId, agreedToTermsOfUse);
+						UserLocalServiceUtil.updateReminderQuery(userId, question, answer);
+						UserLocalServiceUtil.updateLastLogin(userId, loginIP);
+						UserLocalServiceUtil.updatePasswordManually(userId, password, true, passwordReset, new Date());
+						println "Se agrego correctamente[password:"+ password +"][screenName:"+ screenName+
+								"][emailAddress:"+ emailAddress +"][facebookId:"+facebookId+
+								"][openId:"+openId+"][locale:"+locale+"][firstName:"+firstName+
+								"][middleName:"+middleName+"][lastName:"+lastName+"][prefixId:"+prefixId+
+								"][suffixId:"+suffixId+"][male:"+male+"][birthdayMonth:"+birthdayMonth+
+								"][birthdayDay:"+birthdayDay+"][birthdayYear:"+birthdayYear+
+								"][jobTitle:"+jobTitle+"][agreedToTermsOfUse:"+agreedToTermsOfUse+
+								"][question:"+question+"][answer:"+answer+
+								"][passwordReset:"+passwordReset+"][loginIP:"+loginIP+"]";
+
+						
+					}else{
+						println "Existe el usuario y/o correo "+columns[2].trim();
+					}
+				}catch(Exception ex){
+					println item + " ->Detalle: " + ex.getMessage();
+				}
+			}else{
+				println "Registro no contiene data valida!"
+			}
+		}
+	}catch(Exception ex){
+		println "Detalle: " + ex.getMessage();
+	}
+}else{
+	println "El Sitio ["+groupName+"] no existe.";
+}
