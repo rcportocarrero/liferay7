@@ -1,0 +1,96 @@
+import com.liferay.portal.kernel.model.*;
+import com.liferay.portal.kernel.service.*;
+import com.liferay.portal.kernel.util.*;
+import com.liferay.portal.kernel.json.*;
+import com.liferay.portal.kernel.security.permission.*;
+
+separator = "	";
+anotherSeparator = "!";
+mailDomain = "liferay.com";
+groupName = "Guest";
+
+	boolean isJSONValid(String test) {
+		try {
+			JSONFactoryUtil.createJSONObject(test);
+		} catch (JSONException e1) {
+			try {
+				JSONFactoryUtil.createJSONObject(test);
+			} catch (JSONException e) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+long companyId = CompanyLocalServiceUtil.getCompanyByMx(mailDomain).getCompanyId();
+println "companyId:"+companyId;
+
+userGroup = GroupLocalServiceUtil.fetchGroup(companyId,groupName);
+if(userGroup != null){
+	groupId = userGroup.getGroupId();
+	println "groupId:"+groupId;
+	
+	try {
+		List<User> usuarios= UserLocalServiceUtil.getCompanyUsers(companyId,-1,-1);
+		println "#usuarios:"+usuarios.size();
+		println "[Password]"+
+		separator+"[screenName]"+
+		separator+"[getEmailAddress]"+
+		separator+"[getFacebookId]"+
+		separator+"[getOpenId]"+
+		separator+"[Locale]"+
+		separator+"[getFirstName]"+
+		separator+"[getMiddleName]"+
+		separator+"[getLastName]"+
+		separator+"[getPrefixId]"+
+		separator+"[getSuffixId]"+
+		separator+"[getMale]"+
+		separator+"[getMonth]"+
+		separator+"[getDate]"+
+		separator+"[getYear]"+
+		separator+"[getJobTitle]"+
+		separator+"[termsOfUse]"+
+		separator+"[question]"+
+		separator+"[answer]"+
+		separator+"[passwordReset]"+
+		separator+"[loginIP]";
+		for(User user:usuarios){
+			
+			try {
+			log= "\""+user.getPassword()+
+			separator+user.getScreenName()+
+			separator+user.getEmailAddress()+
+			separator+user.getFacebookId()+
+			separator+user.getOpenId()+
+			separator+user.getLocale()+
+			separator+user.getFirstName()+
+			separator+user.getMiddleName()+
+			separator+user.getLastName()+
+			separator+user.getContact().getPrefixId()+
+			separator+user.getContact().getSuffixId()+
+			separator+user.getMale()+
+			separator+user.getBirthday().getMonth()+
+			separator+user.getBirthday().getDate()+
+			separator+(user.getBirthday().getYear()+1900)+
+			separator+user.getJobTitle()+
+			separator+user.getAgreedToTermsOfUse()+
+			separator+user.getReminderQueryQuestion()+
+			separator+user.getReminderQueryAnswer()+
+			separator+user.getPasswordReset()+
+			separator+user.getLoginIP();
+			PermissionChecker permissionChecker;
+			permissionChecker = PermissionCheckerFactoryUtil.create(user);
+			PermissionThreadLocal.setPermissionChecker(permissionChecker);
+			
+			log = log+"\"";
+			;
+				println log;
+			} catch (Exception e) {
+				println "Falla usuario:"+user.getScreenName()+"["+e+"]";
+			}			
+		}
+	} catch (Exception e) {
+		println "Error obteniendo todos los usuarios.";
+		println e;
+	}
+}
