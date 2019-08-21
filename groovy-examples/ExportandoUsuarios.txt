@@ -81,7 +81,15 @@ if(userGroup != null){
 			PermissionChecker permissionChecker;
 			permissionChecker = PermissionCheckerFactoryUtil.create(user);
 			PermissionThreadLocal.setPermissionChecker(permissionChecker);
-			
+			Map<String,Serializable> map=user.getExpandoBridge().getAttributes();
+			for(Map.Entry<String, Serializable> pair:map.entrySet()) {
+				log = log+separator+pair.getKey()+anotherSeparator;
+				if(isJSONValid(String.valueOf(pair.getValue()))&& pair.getValue()!=null){
+					log = log+pair.getValue().replaceAll("\\\"", "\\\\\""); 
+				}else{
+					log = log+pair.getValue();
+				}
+			}
 			log = log+"\"";
 			;
 				println log;
